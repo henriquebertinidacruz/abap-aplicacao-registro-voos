@@ -1,0 +1,97 @@
+*&---------------------------------------------------------------------*
+*& Report Z_REGISTRO_DE_VOOS
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+report z_registro_de_voos.
+
+types: begin of estrutura_relatorio,
+         cia_aerea  type s_carr_id,
+         numero_voo type s_conn_id,
+         data       type s_date, "AAAAMMDD"
+         preco      type s_price.
+types: end of estrutura_relatorio  .
+
+constants: posicao_preco_cabecalho type i value 36,
+           posicao_n_voo_corpo     type i value 12,
+           posicao_data_corpo      type i value 25,
+           coluna                  type c length 1 value '|'.
+
+data: tabela_voo    type standard table of estrutura_relatorio,
+      estrutura_voo like line of tabela_voo.
+
+start-of-selection .
+
+  select-options: s_cia for estrutura_voo-cia_aerea no intervals,
+  s_n_voo for estrutura_voo-numero_voo,
+  s_data for estrutura_voo-data,
+  s_preco for estrutura_voo-preco .
+
+
+
+  uline at (60) .
+  new-line .
+  format COLOR 4 .
+  write: coluna, text-001, coluna,
+          text-002, coluna,
+          text-003, coluna,
+          text-004, coluna.
+
+  format COLOR OFF .
+  new-line .
+  uline at (60) .
+
+  select carrid connid fldate price
+    from sflight
+    into table tabela_voo
+    where carrid in s_cia
+    and connid in s_n_voo
+    and fldate in s_data
+    and price in s_preco
+    ORDER BY fldate DESCENDING.
+
+
+  if sy-subrc = 0.
+
+    loop at tabela_voo into estrutura_voo .
+
+      perform escreve_nova_linha_no_corpo using estrutura_voo-cia_aerea
+                                                estrutura_voo-numero_voo
+                                                estrutura_voo-data
+                                                estrutura_voo-preco.
+
+    endloop .
+
+    perform msg_sucesso .
+
+  else .
+    message 'Não foi encontrado nenhum registro' type 'E' .
+
+  endif .
+  new-line .
+  uline at (60) .
+
+  skip .
+  format COLOR 5 .
+  write 'Relatório gerado em : ' .
+  write sy-datum .
+  format COLOR OFF .
+
+form escreve_nova_linha_no_corpo using cia_aerea numero_voo data preco.
+
+  new-line .
+  write: coluna, (10) cia_aerea centered, coluna,
+         (15) numero_voo centered, coluna,
+         (12) data dd/mm/yyyy, coluna,
+         (10) preco left-justified, coluna.
+endform.
+
+form msg_sucesso .
+  data: numero_registros type string,
+        msg              type string.
+
+  numero_registros = sy-dbcnt .
+  concatenate 'Sucesso! Encontrado:' numero_registros 'Registros' into msg separated by space .
+
+  message msg type 'S' .
+endform .
